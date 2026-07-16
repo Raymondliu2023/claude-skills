@@ -244,17 +244,38 @@ Only include statements for rules that are currently failing. Skip any field alr
 
 ### Path A — Draft Ziggy ticket
 
-Output a ready-to-send Slack message for [#data-platform-support](https://skyscanner.slack.com/archives/C043JRRJJ):
+The SQL must first be saved as a Databricks notebook. Then send the notebook link to Ziggy in [#data-platform-support](https://skyscanner.slack.com/archives/C043JRRJJ).
+
+**Step 1 — Save SQL to a Databricks notebook**
+
+Tell the user:
+```
+Save the SQL above into a new Databricks notebook at:
+https://skyscanner-prod.cloud.databricks.com
+
+Copy the notebook URL from your browser after saving.
+```
+
+**Step 2 — Draft Slack message to Ziggy**
+
+Once the user has the notebook URL, output:
 
 ```
-Hi Ziggy, please help run the following SQL on prod_trusted_bronze.internal.car_hire_quotes to update the UC metadata.
+Hi Ziggy, please help update UC metadata for the following table, thanks.
 
-[paste SQL above]
-
-Thanks!
+Table: {catalog}.{schema}.{table_name}
+Script: {DATABRICKS_NOTEBOOK_URL}
 ```
 
-> **Note:** Ziggy ticket format TBC — update this template once the example is received from colleague.
+Example (based on real PAC request pattern):
+```
+Hi Ziggy, please help update UC metadata for the following table, thanks.
+
+Table: prod_trusted_bronze.internal.car_hire_quotes
+Script: https://skyscanner-prod.cloud.databricks.com/editor/notebooks/XXXXXXXXX?o=1849662692269217
+```
+
+**Note:** Ziggy only needs the table name and notebook link — no need to paste SQL inline. Keep it brief.
 
 ### Path B — Conf diff template
 
@@ -312,7 +333,7 @@ Source: [Metadata requirements in Unity Catalog](https://skyscanner.atlassian.ne
 
 ## Notes
 
-- **Ziggy ticket format:** TBC — update Step 5 Path A once example received from colleague (as of 2026-07-16)
+- **Ziggy ticket format:** Confirmed 2026-07-16 — save SQL to Databricks notebook, send notebook link to Ziggy in #data-platform-support. Keep message brief: table name + notebook URL only.
 - **Path B conf format:** TBC — confirm with Callisto team
 - **Hive-to-UC tables:** 75 across PAC — skip and flag; escalate to Data Platform
 - **Registry is shared** — answers from one squad lead benefit others (e.g. similar tables across squads)
