@@ -81,9 +81,126 @@ The skill will:
 
 ---
 
+## Full walkthrough
+
+Here is what a complete run looks like end-to-end.
+
+**1. Run the skill and paste a dataset**
+
+```
+> /cortex-data-governance
+
+🔍 Checking preconditions...
+✅ All preconditions met — ready to fix.
+
+Paste a Cortex URL, Databricks URL, dataset name, or Cortex tag:
+> https://skyscanner-prod.cloud.databricks.com/explore/data/prod_trusted_bronze/internal/car_hire_quotes
+```
+
+**2. Skill resolves the dataset and shows current state**
+
+```
+Dataset: prod_trusted_bronze.internal.car_hire_quotes
+Squad: autobot-squad
+Score: 27% (4/15 rules passing)
+Path: A (Trusted Data Pipeline)
+
+Failing rules:
+  - column_descriptions
+  - data_classification
+  - data_category
+  - business_criticality
+  - sox_scope
+  - ooh_support_required
+  - data_retention
+  - monte_carlo_monitored
+```
+
+**3. Skill asks metadata questions (only what's missing)**
+
+```
+Let's fill in the metadata. Answer each question or type "skip".
+
+1. Business criticality? (p1 = critical / p2 = important / p3 = low)
+   > p2
+
+2. SOX scope? (yes / no — financial or revenue data?)
+   > no
+
+3. OOH support required? (yes / no)
+   > no
+
+4. Data classification? (internal / confidential / restricted / public)
+   > internal
+
+5. Data category?
+   business_analytical_data | service_data | user_behaviour_data | ...
+   > service_data
+
+6. Data retention period? (e.g. "2 years", "7 years")
+   > 2 years
+
+7. Table description? (1-2 sentences)
+   > Car hire quotes returned by Bumblebee per search request. One row per quote per search session.
+
+8. Column descriptions? (column_name: description — one per line, or "skip")
+   > skip
+```
+
+**4. Skill generates SQL**
+
+```sql
+-- Dataset: prod_trusted_bronze.internal.car_hire_quotes
+-- Squad: autobot-squad | Score: 27% | Generated: 2026-07-16
+
+COMMENT ON TABLE prod_trusted_bronze.internal.car_hire_quotes IS
+'Car hire quotes returned by Bumblebee per search request. One row per quote per search session.';
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.data_classification = "internal" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.data_category = "service_data" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.business_criticality = "p2" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.sox_scope = "false" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.ooh_support = "false" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.retention_period = "2 years" );
+```
+
+**5. Save SQL to Databricks and send to Ziggy**
+
+```
+Next steps:
+1. Copy the SQL above into a new Databricks notebook:
+   https://skyscanner-prod.cloud.databricks.com
+
+2. Copy the notebook URL from your browser, then send this message to
+   #data-platform-support:
+
+   Hi Ziggy, please help update UC metadata for the following table, thanks.
+
+   Table: prod_trusted_bronze.internal.car_hire_quotes
+   Script: https://skyscanner-prod.cloud.databricks.com/editor/notebooks/YOUR_NOTEBOOK_ID
+
+⚠️ Monte Carlo: This dataset is not monitored — onboard it to Monte Carlo
+   separately after the metadata SQL is applied.
+
+✅ Answers saved to registry — won't be asked again for this dataset.
+```
+
+---
+
 ## What the skill asks you
 
-Only 5 judgment calls that can't be inferred from the data:
+Only judgment calls that can't be inferred from the data:
 
 | Question | Example |
 |---|---|
@@ -92,8 +209,8 @@ Only 5 judgment calls that can't be inferred from the data:
 | OOH support required? | `yes` / `no` |
 | Data classification? | `internal` / `confidential` / `restricted` / `public` |
 | Data retention period? | `2 years` / `7 years` |
-
-Plus table description and column descriptions if missing.
+| Table description? | 1–2 sentences |
+| Column descriptions? | `column_name: description` per line |
 
 Everything else (failing rules, storage location, column list, fix path) is loaded automatically from Cortex.
 
