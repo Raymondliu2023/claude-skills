@@ -10,7 +10,8 @@ Each skill is a standalone folder. Clone the repo, copy the skill files to `~/.c
 
 | Skill | What it does |
 |---|---|
-| [cortex-data-governance](./cortex-data-governance/) | Fix Unity Catalog dataset metadata issues on the Cortex Data, AI & ML Governed scorecard — generates pre-filled SQL + draft Ziggy ticket |
+| [cortex-data-governance](./cortex-data-governance/) | Fix a single Unity Catalog dataset's metadata issues — generates pre-filled SQL + draft Ziggy ticket |
+| [cortex-data-governance-report](./cortex-data-governance-report/) | Live scorecard report for a PAC squad — shows current scores, issue breakdown by group, and top 3 actions |
 
 ---
 
