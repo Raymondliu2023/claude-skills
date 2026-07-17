@@ -67,14 +67,28 @@ If input doesn't match, ask for clarification.
 
 ---
 
-## Step 2 — Fetch live data from Cortex
+## Step 2 — Fetch live data from Cortex (two-step)
 
-Call `mcp__cortex-remote__listScorecardScores` with:
+### Step 2a — Get squad's dataset tags
+
+Call `mcp__cortex-remote__searchCatalog` with:
+- `owners`: `["{squad-tag}"]` (e.g. `["matrix-squad"]`)
+- `types`: `["uc-dataset", "ml-model"]`
+- `pageSize`: 100
+- Paginate until all results collected
+
+Extract the `tag` field from each result. This gives a compact list of dataset tags owned by the squad — typically 20–50 items, no large payloads.
+
+### Step 2b — Fetch scorecard score per dataset
+
+For each dataset tag from Step 2a, call `mcp__cortex-remote__listScorecardScores` with:
 - `tag`: `data-ai-ml-governed`
-- `pageSize`: 250
-- Scan all pages until no more results
+- `entityTag`: `{dataset-tag}`
+- `pageSize`: 1, `page`: 0
 
-Filter entries where `service.owners.groups` contains the squad tag.
+Run these calls in parallel (all at once). Each response is small — one dataset's score only.
+
+If a dataset returns 404 ("not contained in scorecard"), skip it — it hasn't been evaluated yet.
 
 For each dataset extract:
 - `service.name` — display name
