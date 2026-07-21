@@ -282,6 +282,8 @@ ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
 
 Only include statements for rules that are currently failing. Skip any field already set (score=1 on that rule).
 
+Always output the full SQL block — even when auto-notebook creation succeeds. The colleague needs it for review, audit, or manual re-run.
+
 ### Path A — Create Databricks notebook and draft Ziggy message
 
 **If `DATABRICKS_TOKEN` is set — auto-create the notebook:**
