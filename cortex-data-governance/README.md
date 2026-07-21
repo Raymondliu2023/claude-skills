@@ -2,29 +2,21 @@
 
 A Claude Code skill for PAC tribe engineers to fix **Data, AI & ML Governed** scorecard issues on Unity Catalog datasets.
 
-It resolves any dataset identifier, shows all pending questions upfront, supports batch answering, **auto-creates a Databricks notebook via API**, and produces a ready-to-send Ziggy message.
+It resolves any dataset identifier, shows all pending questions upfront, supports batch answering, always outputs the full SQL, **auto-creates a Databricks notebook**, **creates or links a Jira ticket**, and produces a ready-to-send Ziggy message.
 
 ---
 
 ## Preconditions
 
-Before you can run this skill you need all of the following:
-
 ### 1. Claude Code
 
 Install from https://claude.ai/code or via the VS Code / JetBrains extension.
 
-Verify: `claude --version`
-
 ### 2. Cortex personal access token
 
-1. Go to https://app.getcortexapp.com → top-right avatar → **Settings** → **API Keys**
-2. Click **Create API Key** — give it a name like `claude-code-governance`
-3. Copy the token
-
-### 3. Cortex MCP configured in Claude Code
-
-Add the following to your Claude Code global MCP config at `~/.claude.json`:
+1. Go to https://app.getcortexapp.com → Settings → **API Keys**
+2. Create a token — name it `claude-code-governance`
+3. Add to `~/.claude.json`:
 
 ```json
 {
@@ -32,9 +24,7 @@ Add the following to your Claude Code global MCP config at `~/.claude.json`:
     "cortex-remote": {
       "type": "remote",
       "url": "https://api.getcortexapp.com/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_TOKEN_HERE"
-      }
+      "headers": { "Authorization": "Bearer YOUR_TOKEN_HERE" }
     }
   }
 }
@@ -42,7 +32,7 @@ Add the following to your Claude Code global MCP config at `~/.claude.json`:
 
 Restart Claude Code after saving.
 
-### 4. Skill files installed
+### 3. Skill files installed
 
 ```bash
 mkdir -p ~/.claude/skills/cortex-data-governance
@@ -50,49 +40,42 @@ cp SKILL.md ~/.claude/skills/cortex-data-governance/SKILL.md
 cp registry.json ~/.claude/skills/cortex-data-governance/registry.json
 ```
 
-### 5. Databricks token (optional — enables auto-notebook creation)
-
-Add to your shell profile (`~/.zshrc` or `~/.bashrc`):
+### 4. Databricks token (optional — enables auto-notebook creation)
 
 ```bash
 export DATABRICKS_TOKEN=your_personal_access_token
 ```
 
-Get your token: [skyscanner-prod.cloud.databricks.com](https://skyscanner-prod.cloud.databricks.com) → top-right avatar → **Settings** → **Developer** → **Access tokens** → **Generate new token**.
+Get from: [skyscanner-prod.cloud.databricks.com](https://skyscanner-prod.cloud.databricks.com) → Settings → Developer → Access tokens.
 
-Without this token the skill still works — it shows the SQL and asks you to paste the notebook URL manually.
+Without this the skill still works — SQL is shown for manual copy.
 
 ---
 
 ## How to use
 
-Open Claude Code in any directory and run:
-
 ```
 /cortex-data-governance
 ```
 
-Then paste any of the following when prompted:
-
-- **Cortex URL** — e.g. `https://app.getcortexapp.com/admin/scorecards/9015?...&entity=en3d1f29a99f493f6a`
-- **Databricks URL** — e.g. `https://skyscanner-prod.cloud.databricks.com/explore/data/prod_trusted_bronze/internal/car_hire_quotes`
-- **Dataset name** — e.g. `car_hire_quotes`
-- **Cortex tag** — e.g. `prod_trusted_bronze.internal.car_hire_quotes`
+Accepts: dataset name, Cortex tag, Cortex URL, or Databricks URL.
 
 The skill will:
 1. Resolve the dataset and show current score + failing rules
-2. Auto-detect the fix path (Path A / Path B / Hive-to-UC)
+2. Auto-detect fix path (Path A / Path B / Hive-to-UC)
 3. Show all pending questions upfront — prepare answers before it asks
 4. Accept answers all at once or one by one
-5. **Auto-create a Databricks notebook** via the workspace API (if token is set)
-6. Output a ready-to-send Ziggy Slack message with the notebook URL pre-filled
-7. Offer to show remaining datasets for your squad
+5. Always output the full SQL block
+6. Auto-create a Databricks notebook (if token is set)
+7. Draft Ziggy Slack message with notebook URL
+8. Create a new Jira ticket or add a comment to an existing one
+9. Offer to show remaining datasets for your squad
 
 ---
 
 ## Full walkthrough
 
-**1. Run the skill**
+**1. Start**
 
 ```
 > /cortex-data-governance
@@ -100,31 +83,24 @@ The skill will:
 🔍 Checking preconditions...
 ✅ Cortex MCP — connected
 ✅ Registry — loaded (324 datasets)
-✅ Databricks token — found (auto-notebook creation enabled)
+✅ Databricks token — found
 ✅ All preconditions met — ready to fix.
-```
 
-**2. Paste a dataset**
-
-```
-Paste a Cortex URL, Databricks URL, dataset name, or Cortex tag:
+Paste a dataset name, Cortex tag, Cortex URL, or Databricks URL:
 > car_hire_quotes
 ```
 
-**3. Skill shows current state**
+**2. Dataset resolved**
 
 ```
 Dataset: prod_trusted_bronze.internal.car_hire_quotes
-Squad: autobot-squad
-Score: 27% (4/15 rules passing)
-Path: A (Trusted Data Pipeline)
+Squad: autobot-squad | Score: 27% | Path: A (Trusted Data Pipeline)
 
-Failing rules: column_descriptions, data_classification, data_category,
-               business_criticality, sox_scope, ooh_support_required,
-               data_retention, monte_carlo_monitored
+Failing: column_descriptions, data_classification, data_category,
+         business_criticality, sox_scope, ooh_support_required, data_retention
 ```
 
-**4. Pending questions shown upfront**
+**3. Questions shown upfront**
 
 ```
 Here are the questions I'll ask (7 in total). Take a moment to prepare.
@@ -137,11 +113,11 @@ Here are the questions I'll ask (7 in total). Take a moment to prepare.
 6. Data retention period? → e.g. "2 years", "7 years", "indefinite"
 7. Table description? → 1-2 sentences
 
-You can answer all at once:  1.p2; 2.no; 3.no; 4.internal; 5.service_data; 6.2 years; 7.Car hire quotes from Bumblebee.
-Or type "ready" to be asked one by one.
+Answer all at once:  1.p2; 2.no; 3.no; 4.internal; 5.service_data; 6.2 years; 7.Car hire quotes from Bumblebee.
+Or type "ready" for one by one.
 ```
 
-**5. Answer all at once**
+**4. Batch answer**
 
 ```
 > 1.p2; 2.no; 3.no; 4.internal; 5.service_data; 6.2 years; 7.Car hire quotes returned by Bumblebee per search request.
@@ -150,14 +126,42 @@ Confirm? (yes / edit N)
 > yes
 ```
 
-**6. Skill auto-creates the Databricks notebook**
+**5. SQL output (always shown)**
+
+```sql
+-- Dataset: prod_trusted_bronze.internal.car_hire_quotes
+-- Squad: autobot-squad | Score: 27% | Generated: 2026-07-21
+
+COMMENT ON TABLE prod_trusted_bronze.internal.car_hire_quotes IS
+'Car hire quotes returned by Bumblebee per search request.';
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.data_classification = "internal" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.data_category = "service_data" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.business_criticality = "p2" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.sox_scope = "false" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.ooh_support = "false" );
+
+ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
+  SET TBLPROPERTIES ( skyscanner.retention_period = "2 years" );
+```
+
+**6. Notebook created**
 
 ```
 Creating Databricks notebook...
 ✅ Notebook created: https://skyscanner-prod.cloud.databricks.com/editor/notebooks/1234567890?o=1849662692269217
 ```
 
-**7. Ready-to-send Ziggy message**
+**7. Ziggy message**
 
 ```
 Copy and send to #data-platform-support:
@@ -166,12 +170,20 @@ Copy and send to #data-platform-support:
 
   Table: prod_trusted_bronze.internal.car_hire_quotes
   Script: https://skyscanner-prod.cloud.databricks.com/editor/notebooks/1234567890?o=1849662692269217
-
-⚠️ Monte Carlo: This dataset is not monitored — onboard separately after metadata is applied.
-✅ Answers saved to registry.
 ```
 
-**8. See remaining datasets**
+**8. Jira ticket**
+
+```
+Do you have a Jira ticket for this dataset fix?
+Paste the ticket key (e.g. ATBT-12345), or type "create" to create one, or "skip".
+> create
+
+✅ Jira ticket created: ATBT-12050 — https://skyscanner.atlassian.net/browse/ATBT-12050
+   [Data Governance] Fix UC metadata — car_hire_quotes
+```
+
+**9. Remaining datasets**
 
 ```
 Would you like to see the remaining datasets for autobot-squad? (yes / no)
@@ -200,6 +212,16 @@ Remaining: 24 datasets still need fixes (showing worst 10):
 
 ---
 
+## Jira options
+
+| Input | What happens |
+|---|---|
+| Paste existing key (e.g. `ATBT-12345`) | Adds a comment with notebook URL + rules addressed |
+| `create` | Creates a new Task with dataset details, notebook URL, and next-steps checklist |
+| `skip` | Continues without touching Jira |
+
+---
+
 ## Fix paths
 
 | Path | When | Fix method |
@@ -212,7 +234,7 @@ Remaining: 24 datasets still need fixes (showing worst 10):
 
 ## Registry
 
-`registry.json` is pre-populated with all 324 PAC datasets. Answers are saved locally so you don't repeat them for the same dataset. Re-download to get the latest.
+`registry.json` is pre-populated with all 324 PAC datasets. Answers are saved locally — never asked again for the same dataset. Re-download to get the latest.
 
 ---
 
