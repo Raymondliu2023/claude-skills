@@ -2,7 +2,7 @@
 
 A Claude Code skill for PAC tribe engineers to fix **Data, AI & ML Governed** scorecard issues on Unity Catalog datasets.
 
-It resolves any dataset identifier, shows all pending questions upfront, supports batch answering, always outputs the full SQL, **auto-creates a Databricks notebook**, **creates or links a Jira ticket**, and produces a ready-to-send Ziggy message.
+It resolves any dataset identifier, shows all pending questions upfront, supports batch answering, always outputs the full SQL, auto-creates a Databricks notebook, creates or links a Jira ticket, then produces a ready-to-send Ziggy message with everything pre-filled.
 
 ---
 
@@ -67,8 +67,8 @@ The skill will:
 4. Accept answers all at once or one by one
 5. Always output the full SQL block
 6. Auto-create a Databricks notebook (if token is set)
-7. Draft Ziggy Slack message with notebook URL
-8. Create a new Jira ticket or add a comment to an existing one
+7. Create a new Jira ticket or add a comment to an existing one
+8. Draft Ziggy Slack message with notebook URL + Jira key pre-filled
 9. Offer to show remaining datasets for your squad
 
 ---
@@ -137,21 +137,7 @@ COMMENT ON TABLE prod_trusted_bronze.internal.car_hire_quotes IS
 
 ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
   SET TBLPROPERTIES ( skyscanner.data_classification = "internal" );
-
-ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
-  SET TBLPROPERTIES ( skyscanner.data_category = "service_data" );
-
-ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
-  SET TBLPROPERTIES ( skyscanner.business_criticality = "p2" );
-
-ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
-  SET TBLPROPERTIES ( skyscanner.sox_scope = "false" );
-
-ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
-  SET TBLPROPERTIES ( skyscanner.ooh_support = "false" );
-
-ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
-  SET TBLPROPERTIES ( skyscanner.retention_period = "2 years" );
+-- ... (remaining statements)
 ```
 
 **6. Notebook created**
@@ -161,18 +147,7 @@ Creating Databricks notebook...
 ✅ Notebook created: https://skyscanner-prod.cloud.databricks.com/editor/notebooks/1234567890?o=1849662692269217
 ```
 
-**7. Ziggy message**
-
-```
-Copy and send to #data-platform-support:
-
-  Hi Ziggy, please help update UC metadata for the following table, thanks.
-
-  Table: prod_trusted_bronze.internal.car_hire_quotes
-  Script: https://skyscanner-prod.cloud.databricks.com/editor/notebooks/1234567890?o=1849662692269217
-```
-
-**8. Jira ticket**
+**7. Jira ticket**
 
 ```
 Do you have a Jira ticket for this dataset fix?
@@ -181,6 +156,18 @@ Paste the ticket key (e.g. ATBT-12345), or type "create" to create one, or "skip
 
 ✅ Jira ticket created: ATBT-12050 — https://skyscanner.atlassian.net/browse/ATBT-12050
    [Data Governance] Fix UC metadata — car_hire_quotes
+```
+
+**8. Ziggy message (notebook URL + Jira key pre-filled)**
+
+```
+Copy and send to #data-platform-support:
+
+  Hi Ziggy, please help update UC metadata for the following table, thanks.
+
+  Table: prod_trusted_bronze.internal.car_hire_quotes
+  Script: https://skyscanner-prod.cloud.databricks.com/editor/notebooks/1234567890?o=1849662692269217
+  Jira: ATBT-12050
 ```
 
 **9. Remaining datasets**
@@ -217,8 +204,8 @@ Remaining: 24 datasets still need fixes (showing worst 10):
 | Input | What happens |
 |---|---|
 | Paste existing key (e.g. `ATBT-12345`) | Adds a comment with notebook URL + rules addressed |
-| `create` | Creates a new Task with dataset details, notebook URL, and next-steps checklist |
-| `skip` | Continues without touching Jira |
+| `create` | Creates a new Task with dataset details, notebook URL, and next-steps checklist. Key is auto-detected from squad (ATBT/MAT/IOC). |
+| `skip` | Continues without touching Jira. Ziggy message omits the Jira line. |
 
 ---
 
@@ -226,7 +213,7 @@ Remaining: 24 datasets still need fixes (showing worst 10):
 
 | Path | When | Fix method |
 |---|---|---|
-| **Path A** | Trusted Data Pipeline / Fivetran / Databricks Notebooks | Auto-create notebook → Ziggy ticket |
+| **Path A** | Trusted Data Pipeline / Fivetran / Databricks Notebooks | Auto-create notebook → Jira ticket → Ziggy message |
 | **Path B** | SkySpark / HOPS pipelines | Edit conf files → `save_table_metadata` → PR |
 | **Hive-to-UC ❓** | Legacy Hive migration tables | Skip — contact Data Platform |
 
