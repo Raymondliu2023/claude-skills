@@ -2,7 +2,7 @@
 
 A Claude Code skill for PAC tribe engineers to fix **Data, AI & ML Governed** scorecard issues on Unity Catalog datasets.
 
-It takes any dataset identifier as input, asks 5 metadata questions, and generates a pre-filled SQL notebook ready to send to Ziggy in [#data-platform-support](https://skyscanner.slack.com/archives/C043JRRJJ).
+It resolves any dataset identifier, shows all pending questions upfront so you can prepare, supports batch answering in one shot, generates a pre-filled SQL notebook ready to send to Ziggy, and lists remaining datasets for your squad after each fix.
 
 ---
 
@@ -75,9 +75,11 @@ Then paste any of the following when prompted:
 The skill will:
 1. Resolve the dataset and show current score + failing rules
 2. Auto-detect the fix path (Path A / Path B / Hive-to-UC)
-3. Ask you 5 metadata questions (only the ones not already in the registry)
-4. Generate a pre-filled SQL notebook
-5. Output a draft Slack message ready to send to Ziggy
+3. Show all pending questions upfront — so you can prepare answers before it asks
+4. Accept answers all at once in one reply, or one by one
+5. Generate a pre-filled SQL notebook
+6. Output a draft Slack message ready to send to Ziggy
+7. Offer to show remaining datasets for your squad that still need fixes
 
 ---
 
@@ -116,42 +118,51 @@ Failing rules:
   - monte_carlo_monitored
 ```
 
-**3. Skill asks metadata questions (only what's missing)**
+**3. Skill shows all pending questions upfront**
 
 ```
-Let's fill in the metadata. Answer each question or type "skip".
+Here are the questions I'll ask (7 in total). Take a moment to prepare, then reply with your answers.
 
-1. Business criticality? (p1 = critical / p2 = important / p3 = low)
-   > p2
+1. Business criticality? → p1 (critical) / p2 (important) / p3 (low)
+2. SOX scope? → yes / no (does this table contain financial or revenue data?)
+3. OOH support required? → yes / no (does on-call need to respond to alerts on this table out of hours?)
+4. Data classification? → internal / confidential / restricted / public
+5. Data category? →
+   business_analytical_data | business_insights_data | business_performance_data |
+   inventory_data | inventory_snapshot_data | service_analytical_data | service_data |
+   service_snapshot_data | traveller_profile_data | user_behaviour_data |
+   user_consent_data | user_preference_data
+6. Data retention period? → e.g. "2 years", "7 years", "indefinite"
+7. Table description? → 1-2 sentences describing what this table contains, granularity, and source
 
-2. SOX scope? (yes / no — financial or revenue data?)
-   > no
-
-3. OOH support required? (yes / no)
-   > no
-
-4. Data classification? (internal / confidential / restricted / public)
-   > internal
-
-5. Data category?
-   business_analytical_data | service_data | user_behaviour_data | ...
-   > service_data
-
-6. Data retention period? (e.g. "2 years", "7 years")
-   > 2 years
-
-7. Table description? (1-2 sentences)
-   > Car hire quotes returned by Bumblebee per search request. One row per quote per search session.
-
-8. Column descriptions? (column_name: description — one per line, or "skip")
-   > skip
+You can answer all at once:  1.p2; 2.no; 3.no; 4.internal; 5.service_data; 6.2 years; 7.Car hire quotes returned by Bumblebee per search request.
+Or type "ready" to be asked one by one.
+Type "skip" for any answer you want to leave for later.
 ```
 
-**4. Skill generates SQL**
+**4. Answer all at once (batch mode)**
+
+```
+> 1.p2; 2.no; 3.no; 4.internal; 5.service_data; 6.2 years; 7.Car hire quotes returned by Bumblebee per search request. One row per quote per search session.
+
+Here's what I'll save:
+  business_criticality: p2
+  sox_scope: false
+  ooh_support: false
+  data_classification: internal
+  data_category: service_data
+  retention_period: 2 years
+  table_description: Car hire quotes returned by Bumblebee per search request. One row per quote per search session.
+
+Confirm? (yes / edit N)
+> yes
+```
+
+**5. Skill generates SQL**
 
 ```sql
 -- Dataset: prod_trusted_bronze.internal.car_hire_quotes
--- Squad: autobot-squad | Score: 27% | Generated: 2026-07-16
+-- Squad: autobot-squad | Score: 27% | Generated: 2026-07-21
 
 COMMENT ON TABLE prod_trusted_bronze.internal.car_hire_quotes IS
 'Car hire quotes returned by Bumblebee per search request. One row per quote per search session.';
@@ -175,7 +186,7 @@ ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
   SET TBLPROPERTIES ( skyscanner.retention_period = "2 years" );
 ```
 
-**5. Save SQL to Databricks and send to Ziggy**
+**6. Save SQL to Databricks and send to Ziggy**
 
 ```
 Next steps:
@@ -196,11 +207,28 @@ Next steps:
 ✅ Answers saved to registry — won't be asked again for this dataset.
 ```
 
+**7. See remaining datasets for your squad**
+
+```
+Would you like to see the remaining datasets for autobot-squad that still need fixes? (yes / no)
+> yes
+
+Remaining datasets for autobot-squad — 24 still need fixes (showing worst 10):
+
+ #  Dataset                                          Score   Failing rules
+ 1  car_hire_bumblebee_worker_dropped_quotes         27%     column_descriptions, business_criticality, sox_scope (+3)
+ 2  car_hire_office_search                           27%     column_descriptions, data_category, data_retention (+3)
+ 3  car_hire_vendor_mapping_search                   27%     column_descriptions, business_criticality, ooh_support (+3)
+...
+
+Run the skill again with any dataset name or Cortex URL to fix the next one.
+```
+
 ---
 
 ## What the skill asks you
 
-Only judgment calls that can't be inferred from the data:
+Only judgment calls that can't be inferred from the data. Questions are shown upfront — only the ones not already answered in the registry:
 
 | Question | Example |
 |---|---|
@@ -208,9 +236,10 @@ Only judgment calls that can't be inferred from the data:
 | SOX scope? | `yes` / `no` |
 | OOH support required? | `yes` / `no` |
 | Data classification? | `internal` / `confidential` / `restricted` / `public` |
+| Data category? | `service_data` / `user_behaviour_data` / ... (12 options) |
 | Data retention period? | `2 years` / `7 years` |
 | Table description? | 1–2 sentences |
-| Column descriptions? | `column_name: description` per line |
+| Column descriptions? | `column_name: description` per line — asked separately |
 
 Everything else (failing rules, storage location, column list, fix path) is loaded automatically from Cortex.
 
@@ -230,7 +259,7 @@ Path is detected automatically. No user input needed.
 
 ## Registry
 
-`registry.json` is pre-populated with all 324 PAC datasets — catalog tag, squad, failing rules, and column list from Cortex. When you answer the 5 questions, answers are saved locally so you don't have to answer again for the same dataset.
+`registry.json` is pre-populated with all 324 PAC datasets — catalog tag, squad, failing rules, and column list from Cortex. When you answer questions, answers are saved locally so you don't have to answer again for the same dataset.
 
 To get the latest registry (after new datasets are added to the scorecard), re-download `registry.json` from this repo and re-copy it.
 
