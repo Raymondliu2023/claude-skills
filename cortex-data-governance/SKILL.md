@@ -158,37 +158,62 @@ If tag is new, ask all questions.
 
 ## Step 4 — Ask metadata questions interactively
 
-Ask one question at a time. Show the dataset name and current score for context.
+### Step 4a — Show pending questions upfront
+
+Before asking anything, determine which questions are actually needed for this dataset (registry fields missing + rules still failing). Then display **only those questions** with their numbers, options, and hints — so the user can prepare answers in advance.
 
 ```
 Dataset: prod_trusted_bronze.internal.car_hire_quotes (autobot-squad, 27%)
-Failing: column_descriptions, business_criticality, sox_scope, ooh_support_required, data_retention, data_classification, data_category, monte_carlo_monitored
+Failing: column_descriptions, business_criticality, sox_scope, ooh_support_required, data_retention, data_classification, data_category
 
-Let's fill in the metadata. Answer each question — type your answer or "skip" to leave it for later.
+Here are the questions I'll ask (5 in total). Take a moment to prepare, then reply with your answers.
 
-1. Business criticality? (p1 = critical service / p2 = important / p3 = low)
-   > 
-2. SOX scope? (yes / no — does this table contain financial or revenue data?)
-   > 
-3. OOH support required? (yes / no — does an on-call engineer need to respond to alerts on this table out of hours?)
-   > 
-4. Data classification? (internal / confidential / restricted / public)
-   > 
-5. Data category? Options:
-   business_analytical_data | business_insights_data | business_performance_data |
-   inventory_data | inventory_snapshot_data | service_analytical_data | service_data |
-   service_snapshot_data | traveller_profile_data | user_behaviour_data |
-   user_consent_data | user_preference_data
-   > 
-6. Data retention period? (e.g. "2 years", "7 years", "indefinite")
-   > 
-7. Table description? (1-2 sentences describing what this table contains, granularity, and source)
-   > 
-8. Column descriptions? (paste as "column_name: description" pairs, one per line — or type "skip" to leave blank)
-   > 
+1. Business criticality? → p1 (critical) / p2 (important) / p3 (low)
+2. SOX scope? → yes / no (does this table contain financial or revenue data?)
+3. OOH support required? → yes / no (does on-call need to respond to alerts on this table out of hours?)
+4. Data classification? → internal / confidential / restricted / public
+5. Data retention period? → e.g. "2 years", "7 years", "indefinite"
+
+You can answer all at once:  1.p2; 2.no; 3.no; 4.internal; 5.2 years
+Or type "ready" to be asked one by one.
+Type "skip" for any answer you want to leave for later.
 ```
 
-After all questions: show a summary and ask for confirmation before saving.
+Only list questions for fields that are actually missing. If the registry already has `business_criticality` filled, don't show Q1. The numbering restarts from 1 for the pending questions (not fixed positions).
+
+**Column descriptions** — if needed, always ask separately after the other questions, since the format is multi-line. In the upfront list, show it as:
+```
+N. Column descriptions? → answer after the others, or type "skip"
+```
+
+**Data category** — include the 12 options in the upfront list just like the one-by-one flow, so the user can pick before answering.
+
+---
+
+### Step 4b — Accept answers
+
+**Batch format (preferred):** User replies with `1.answer; 2.answer; ...`
+
+Parse each `N.answer` by splitting on `;`, then map back to the question list shown in Step 4a. Strip whitespace. Accept both `1. p2` and `1.p2`.
+
+For column descriptions in batch: accept `N.col1: desc, col2: desc` with comma-separated pairs. If the user typed `N.skip`, mark as skipped.
+
+**One-by-one format:** If the user types `ready`, ask each question individually in sequence (original flow).
+
+**Mixed:** If only some answers are provided in batch (e.g. `1.p2; 2.no`), accept those and ask the remaining questions one by one.
+
+After all answers collected: show a confirmation summary and ask for confirmation before saving.
+
+```
+Here's what I'll save:
+  business_criticality: p2
+  sox_scope: false
+  ooh_support: false
+  data_classification: internal
+  retention_period: 2 years
+
+Confirm? (yes / edit N)
+```
 
 Save answered fields to `registry.json`.
 
@@ -310,6 +335,35 @@ Rules skipped (still open): monte_carlo_monitored (see note above)
 SQL notebook ready — copy into a Databricks notebook and send to Ziggy.
 Registry updated: ~/.claude/skills/cortex-data-governance/registry.json
 ```
+
+### Step 7a — Offer remaining datasets
+
+After the summary, ask:
+
+```
+Would you like to see the remaining datasets for [squad-name] that still need fixes? (yes / no)
+```
+
+**Squad name source:** Use the `squad` field from the registry entry just saved (e.g. `autobot-squad`). If the registry entry has no `squad` field (first-time run), ask: "What's your squad name? (e.g. autobot-squad)" and save it to the registry entry before querying.
+
+**If yes:** Call `mcp__cortex-remote__listScorecardScores` with `tag: "data-ai-ml-governed"`, then filter results to entities where the Cortex team/owner matches the squad. Sort by score ascending (worst first). Cap display at **10 datasets** — show a count of the rest.
+
+Display format:
+
+```
+Remaining datasets for autobot-squad — 12 still need fixes (showing worst 10):
+
+ #  Dataset                                          Score   Failing rules
+ 1  prod_trusted_bronze.internal.car_hire_quotes     27%     column_descriptions, business_criticality, sox_scope (+3)
+ 2  prod_trusted_bronze.internal.car_hire_vendors    31%     column_descriptions, data_category, data_retention (+1)
+ 3  ...
+
+Run the skill again with any dataset name or Cortex URL to fix the next one.
+```
+
+Truncate rule names at 3 in the table — show `(+N more)` if there are more.
+
+**If no:** End the session cleanly with no further output.
 
 ---
 
