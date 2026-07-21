@@ -341,22 +341,7 @@ Wait for the user to paste the notebook URL before continuing.
 
 ---
 
-**Draft Ziggy Slack message (always — auto or manual):**
-
-Once the notebook URL is known, output the ready-to-send message:
-
-```
-Hi Ziggy, please help update UC metadata for the following table, thanks.
-
-Table: {catalog}.{schema}.{table_name}
-Script: {NOTEBOOK_URL}
-```
-
-**Note:** Ziggy only needs the table name and notebook link — no SQL inline. Keep it brief.
-
----
-
-**Jira ticket (always — after Ziggy message is drafted):**
+**Jira ticket (always — after notebook URL is known, before Ziggy message):**
 
 Ask:
 
@@ -414,6 +399,24 @@ Create the ticket via `mcp__mcp-atlassian__jira_create_issue`:
 Then show: `✅ Jira ticket created: {KEY} — {JIRA_URL}`
 
 **If user types `skip`:** continue without creating or updating any ticket.
+
+---
+
+**Draft Ziggy Slack message (always — after Jira step):**
+
+Once notebook URL and Jira key are known, output the ready-to-send message:
+
+```
+Hi Ziggy, please help update UC metadata for the following table, thanks.
+
+Table: {catalog}.{schema}.{table_name}
+Script: {NOTEBOOK_URL}
+Jira: {KEY}
+```
+
+Omit the `Jira:` line if the user typed `skip`.
+
+**Note:** Ziggy only needs the table name, notebook link, and ticket reference. Keep it brief.
 
 ### Path B — Conf diff template
 
