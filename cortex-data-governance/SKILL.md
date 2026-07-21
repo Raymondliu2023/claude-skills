@@ -66,7 +66,22 @@ If tool exists but returns 403 / no access to scorecard `data-ai-ml-governed`:
 Contact Raymond Liu or check your Cortex permissions.
 ```
 
-### Check 3 — Registry readable
+### Check 3 — Databricks token (optional — for auto-notebook creation)
+
+Check if `DATABRICKS_TOKEN` is set in the environment:
+```bash
+echo $DATABRICKS_TOKEN
+```
+
+If empty or unset: note silently — the skill will fall back to showing the SQL for manual copy. Do NOT block the run. Show in precondition summary:
+```
+⚠️ DATABRICKS_TOKEN not set — will show SQL for manual copy instead of auto-creating notebook.
+   To enable auto-create: export DATABRICKS_TOKEN=your_token in your shell profile.
+```
+
+If set: note silently as `✅ Databricks token found — will auto-create notebook.`
+
+### Check 4 — Registry readable
 
 Load `registry.json`. If it's empty `{}` or missing the `_note` field, show:
 ```
@@ -267,40 +282,75 @@ ALTER TABLE prod_trusted_bronze.internal.car_hire_quotes
 
 Only include statements for rules that are currently failing. Skip any field already set (score=1 on that rule).
 
-### Path A — Draft Ziggy ticket
+### Path A — Create Databricks notebook and draft Ziggy message
 
-The SQL must first be saved as a Databricks notebook. Then send the notebook link to Ziggy in [#data-platform-support](https://skyscanner.slack.com/archives/C043JRRJJ).
+**If `DATABRICKS_TOKEN` is set — auto-create the notebook:**
 
-**Step 1 — Save SQL to a Databricks notebook**
+Build the notebook content as a base64-encoded Databricks source file (format: `SOURCE`, language: `SQL`):
 
-Tell the user:
+```
+NOTEBOOK_CONTENT="-- Dataset: {tag}\n-- Squad: {squad} | Score: {score}% | Generated: {date}\n\n{all SQL statements joined with \n\n}"
+NOTEBOOK_B64=$(echo -e "$NOTEBOOK_CONTENT" | base64)
+NOTEBOOK_PATH="/Users/{squad}/governance/{table_name}_{date}"
+```
+
+Call the Databricks workspace import API:
+
+```bash
+curl -s -X POST https://skyscanner-prod.cloud.databricks.com/api/2.0/workspace/import \
+  -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"path\": \"$NOTEBOOK_PATH\",
+    \"format\": \"SOURCE\",
+    \"language\": \"SQL\",
+    \"content\": \"$NOTEBOOK_B64\",
+    \"overwrite\": false
+  }"
+```
+
+If the API call succeeds (HTTP 200): extract the notebook path and construct the URL:
+```
+NOTEBOOK_URL="https://skyscanner-prod.cloud.databricks.com/editor/notebooks$(echo $NOTEBOOK_PATH | sed 's|/|%2F|g')?o=1849662692269217"
+```
+
+Show the user:
+```
+✅ Notebook created: {NOTEBOOK_URL}
+```
+
+If the API call fails (auth error, path conflict, etc.): fall back to the manual flow below and show the error message.
+
+---
+
+**If `DATABRICKS_TOKEN` is not set — manual fallback:**
+
+Show the SQL block (already output above) and tell the user:
+
 ```
 Save the SQL above into a new Databricks notebook at:
 https://skyscanner-prod.cloud.databricks.com
 
-Copy the notebook URL from your browser after saving.
+Copy the notebook URL from your browser, then paste it below.
+> 
 ```
 
-**Step 2 — Draft Slack message to Ziggy**
+Wait for the user to paste the notebook URL before continuing.
 
-Once the user has the notebook URL, output:
+---
+
+**Draft Ziggy Slack message (always — auto or manual):**
+
+Once the notebook URL is known, output the ready-to-send message:
 
 ```
 Hi Ziggy, please help update UC metadata for the following table, thanks.
 
 Table: {catalog}.{schema}.{table_name}
-Script: {DATABRICKS_NOTEBOOK_URL}
+Script: {NOTEBOOK_URL}
 ```
 
-Example (based on real PAC request pattern):
-```
-Hi Ziggy, please help update UC metadata for the following table, thanks.
-
-Table: prod_trusted_bronze.internal.car_hire_quotes
-Script: https://skyscanner-prod.cloud.databricks.com/editor/notebooks/XXXXXXXXX?o=1849662692269217
-```
-
-**Note:** Ziggy only needs the table name and notebook link — no need to paste SQL inline. Keep it brief.
+**Note:** Ziggy only needs the table name and notebook link — no SQL inline. Keep it brief.
 
 ### Path B — Conf diff template
 
